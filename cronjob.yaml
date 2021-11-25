@@ -1,0 +1,74 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  annotations:
+    rbac.authorization.kubernetes.io/autoupdate: "true"
+  labels:
+  name: namespace-read-role
+  namespace: default
+rules:
+  - apiGroups:
+      - ""
+    resources: ["*"]
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - extensions
+      - autoscaling
+      - batch
+    resources: ["*"]
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - apps
+    resources: ["*"]
+    verbs:
+      - get
+      - list
+      - watch
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: namespace-read-sa
+  namespace: default
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: namespace-read-binding
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: namespace-read-sa
+    namespace: default
+roleRef:
+  kind: Role
+  name: namespace-read-role
+  apiGroup: ""
+
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: hello
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: namespace-read-sa
+          containers:
+            - name: hello
+              image: bitnami/kubectl:latest
+              command:
+                - /bin/sh
+                - -c
+                - kubectl get all -n default
+          restartPolicy: OnFailure
